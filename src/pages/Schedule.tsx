@@ -1,69 +1,16 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { ArrowLeft, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
-
-// Mock data for bookings
-const mockBookings = [
-  {
-    id: 1,
-    room: "Lab A - Chemistry",
-    date: "2024-01-15",
-    startTime: "09:00",
-    endTime: "11:00",
-    bookedBy: "Dr. Smith",
-    purpose: "Organic Chemistry Research",
-    attendees: 8
-  },
-  {
-    id: 2,
-    room: "Conference Room 1",
-    date: "2024-01-15",
-    startTime: "14:00",
-    endTime: "16:00",
-    bookedBy: "Prof. Johnson",
-    purpose: "Weekly Team Meeting",
-    attendees: 12
-  },
-  {
-    id: 3,
-    room: "Lab B - Physics",
-    date: "2024-01-16",
-    startTime: "10:00",
-    endTime: "12:00",
-    bookedBy: "Dr. Williams",
-    purpose: "Quantum Mechanics Experiment",
-    attendees: 6
-  },
-  {
-    id: 4,
-    room: "Research Lab C",
-    date: "2024-01-16",
-    startTime: "13:00",
-    endTime: "17:00",
-    bookedBy: "Sarah Chen",
-    purpose: "Data Analysis Session",
-    attendees: 4
-  },
-  {
-    id: 5,
-    room: "Conference Room 2",
-    date: "2024-01-17",
-    startTime: "09:00",
-    endTime: "10:30",
-    bookedBy: "Dr. Brown",
-    purpose: "Project Review",
-    attendees: 5
-  }
-];
+import { googleSheetsAPI, BookingData } from "@/services/googleSheetsApi";
+import { useToast } from "@/hooks/use-toast";
 
 const rooms = [
   "All Rooms",
   "Lab A - Chemistry",
-  "Lab B - Physics",
+  "Lab B - Physics", 
   "Conference Room 1",
   "Conference Room 2",
   "Research Lab C"
@@ -72,12 +19,36 @@ const rooms = [
 const Schedule = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedRoom, setSelectedRoom] = useState("All Rooms");
+  const [bookings, setBookings] = useState<BookingData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        setLoading(true);
+        const response = await googleSheetsAPI.getBookings();
+        setBookings(response.bookings || []);
+      } catch (error) {
+        console.error('Failed to fetch bookings:', error);
+        toast({
+          title: "Error Loading Schedule",
+          description: "Failed to load booking data. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookings();
+  }, [toast]);
 
   const formatDate = (date: Date) => {
     return date.toISOString().split('T')[0];
   };
 
-  const filteredBookings = mockBookings.filter(booking => {
+  const filteredBookings = bookings.filter(booking => {
     const matchesDate = booking.date === formatDate(selectedDate);
     const matchesRoom = selectedRoom === "All Rooms" || booking.room === selectedRoom;
     return matchesDate && matchesRoom;
@@ -85,11 +56,36 @@ const Schedule = () => {
 
   const getUpcomingBookings = () => {
     const today = new Date();
-    return mockBookings
+    return bookings
       .filter(booking => new Date(booking.date) >= today)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 5);
   };
+
+  const getTodaysAvailability = () => {
+    const today = formatDate(new Date());
+    return rooms.slice(1).map((room) => {
+      const todayBookings = bookings.filter(
+        booking => booking.room === room && booking.date === today
+      );
+      return {
+        room,
+        isAvailable: todayBookings.length === 0,
+        bookingCount: todayBookings.length
+      };
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Clock className="h-12 w-12 mx-auto mb-4 text-purple-600 animate-spin" />
+          <p className="text-gray-600">Loading schedule...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -166,9 +162,9 @@ const Schedule = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filteredBookings.map((booking) => (
+                    {filteredBookings.map((booking, index) => (
                       <div
-                        key={booking.id}
+                        key={index}
                         className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                       >
                         <div className="flex justify-between items-start mb-2">
@@ -199,9 +195,9 @@ const Schedule = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {getUpcomingBookings().map((booking) => (
+                  {getUpcomingBookings().map((booking, index) => (
                     <div
-                      key={booking.id}
+                      key={index}
                       className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
                     >
                       <div>
@@ -232,30 +228,23 @@ const Schedule = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {rooms.slice(1).map((room) => {
-                    const todayBookings = mockBookings.filter(
-                      booking => booking.room === room && booking.date === formatDate(new Date())
-                    );
-                    const isAvailable = todayBookings.length === 0;
-                    
-                    return (
-                      <div
-                        key={room}
-                        className={`p-3 rounded-lg border ${
-                          isAvailable 
-                            ? "bg-green-50 border-green-200" 
-                            : "bg-red-50 border-red-200"
-                        }`}
-                      >
-                        <div className="font-medium">{room}</div>
-                        <div className={`text-sm ${
-                          isAvailable ? "text-green-600" : "text-red-600"
-                        }`}>
-                          {isAvailable ? "Available" : `${todayBookings.length} booking(s)`}
-                        </div>
+                  {getTodaysAvailability().map(({ room, isAvailable, bookingCount }) => (
+                    <div
+                      key={room}
+                      className={`p-3 rounded-lg border ${
+                        isAvailable 
+                          ? "bg-green-50 border-green-200" 
+                          : "bg-red-50 border-red-200"
+                      }`}
+                    >
+                      <div className="font-medium">{room}</div>
+                      <div className={`text-sm ${
+                        isAvailable ? "text-green-600" : "text-red-600"
+                      }`}>
+                        {isAvailable ? "Available" : `${bookingCount} booking(s)`}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

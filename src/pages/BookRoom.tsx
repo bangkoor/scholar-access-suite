@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,7 @@ const BookRoom = () => {
 
       toast({
         title: "Room Booked Successfully!",
-        description: `${selectedRoomData?.name} has been reserved for ${selectedDate.toDateString()} from ${startTime} to ${endTime}.`,
+        description: `${selectedRoomData?.name} has been reserved for ${selectedDate.toDateString()} from ${startTime} to ${endTime}. The schedule will be updated shortly.`,
       });
 
       // Reset form
