@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { googleSheetsAPI } from "@/services/googleSheetsApi";
 
 const rooms = [
   { id: 1, name: "Lab A - Chemistry", capacity: 20, equipment: "Fume hoods, Microscopes" },
@@ -29,9 +29,10 @@ const BookRoom = () => {
   const [endTime, setEndTime] = useState("");
   const [purpose, setPurpose] = useState("");
   const [attendees, setAttendees] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!selectedRoom || !selectedDate || !startTime || !endTime || !purpose) {
@@ -43,18 +44,42 @@ const BookRoom = () => {
       return;
     }
 
-    toast({
-      title: "Room Booked Successfully!",
-      description: `${rooms.find(r => r.id.toString() === selectedRoom)?.name} has been reserved for ${selectedDate.toDateString()} from ${startTime} to ${endTime}.`,
-    });
+    setIsSubmitting(true);
 
-    // Reset form
-    setSelectedRoom("");
-    setSelectedDate(undefined);
-    setStartTime("");
-    setEndTime("");
-    setPurpose("");
-    setAttendees("");
+    try {
+      const selectedRoomData = rooms.find(r => r.id.toString() === selectedRoom);
+      
+      await googleSheetsAPI.createBooking({
+        room: selectedRoomData?.name || "",
+        date: selectedDate.toISOString().split('T')[0],
+        startTime,
+        endTime,
+        purpose,
+        attendees
+      });
+
+      toast({
+        title: "Room Booked Successfully!",
+        description: `${selectedRoomData?.name} has been reserved for ${selectedDate.toDateString()} from ${startTime} to ${endTime}.`,
+      });
+
+      // Reset form
+      setSelectedRoom("");
+      setSelectedDate(undefined);
+      setStartTime("");
+      setEndTime("");
+      setPurpose("");
+      setAttendees("");
+    } catch (error) {
+      console.error('Booking failed:', error);
+      toast({
+        title: "Booking Failed",
+        description: "There was an error creating your booking. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -162,8 +187,12 @@ const BookRoom = () => {
                   />
                 </div>
 
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-                  Book Room
+                <Button 
+                  type="submit" 
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Booking..." : "Book Room"}
                 </Button>
               </form>
             </CardContent>

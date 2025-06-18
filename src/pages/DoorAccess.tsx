@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Key } from "lucide-react";
 import { Link } from "react-router-dom";
+import { googleSheetsAPI } from "@/services/googleSheetsApi";
 
 const accessAreas = [
   { id: "lab-a", name: "Chemistry Lab A", level: "Standard" },
@@ -29,6 +29,7 @@ const DoorAccess = () => {
     reason: "",
     selectedAreas: [] as string[],
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const handleInputChange = (field: string, value: string) => {
@@ -44,7 +45,7 @@ const DoorAccess = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.fullName || !formData.studentId || !formData.email || formData.selectedAreas.length === 0) {
@@ -56,21 +57,36 @@ const DoorAccess = () => {
       return;
     }
 
-    toast({
-      title: "Access Request Submitted!",
-      description: "Your door access request has been submitted for approval. You will receive an email notification once processed.",
-    });
+    setIsSubmitting(true);
 
-    // Reset form
-    setFormData({
-      fullName: "",
-      studentId: "",
-      email: "",
-      department: "",
-      supervisor: "",
-      reason: "",
-      selectedAreas: [],
-    });
+    try {
+      await googleSheetsAPI.createAccessRequest(formData);
+
+      toast({
+        title: "Access Request Submitted!",
+        description: "Your door access request has been submitted for approval. You will receive an email notification once processed.",
+      });
+
+      // Reset form
+      setFormData({
+        fullName: "",
+        studentId: "",
+        email: "",
+        department: "",
+        supervisor: "",
+        reason: "",
+        selectedAreas: [],
+      });
+    } catch (error) {
+      console.error('Access request failed:', error);
+      toast({
+        title: "Submission Failed",
+        description: "There was an error submitting your access request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -201,8 +217,12 @@ const DoorAccess = () => {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
-                    Submit Access Request
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Submitting..." : "Submit Access Request"}
                   </Button>
                 </form>
               </CardContent>
