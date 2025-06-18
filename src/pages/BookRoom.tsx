@@ -12,11 +12,8 @@ import { Link } from "react-router-dom";
 import { googleSheetsAPI } from "@/services/googleSheetsApi";
 
 const rooms = [
-  { id: 1, name: "Lab A - Chemistry", capacity: 20, equipment: "Fume hoods, Microscopes" },
-  { id: 2, name: "Lab B - Physics", capacity: 15, equipment: "Oscilloscopes, Spectrometers" },
-  { id: 3, name: "Conference Room 1", capacity: 12, equipment: "Projector, Whiteboard" },
-  { id: 4, name: "Conference Room 2", capacity: 8, equipment: "Video conferencing" },
-  { id: 5, name: "Research Lab C", capacity: 6, equipment: "High-end computers, 3D printer" },
+  { id: 1, name: "Ruang meeting lab (gedung lama)", capacity: 20, equipment: "Large screen, video conference, whiteboard" },
+  { id: 2, name: "Ruang meeting divisi (gedung baru)", capacity: 15, equipment: "LCD projector, screen, whiteboard" },
 ];
 
 const timeSlots = [
